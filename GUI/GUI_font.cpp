@@ -1,10 +1,9 @@
 
 #include <stdlib.h>
 #include <cmath>
+#include <misc/U6misc.h>
+#include <misc/SDLUtils.h>
 
-#include "SDL.h"
-
-#include "nuvieDefs.h"
 #include "GUI_font.h"
 #include "GUI_loadimage.h"
 
@@ -89,7 +88,7 @@ GUI_Font::~GUI_Font()
 void GUI_Font::SetTransparency(int on)
 {
   if ( (transparent=on) )  // single "=" is correct
-    SDL_SetColorKey(fontStore,SDL_SRCCOLORKEY,0);
+    SDL_SetColorKey(fontStore,SDL_TRUE,0);
   else
     SDL_SetColorKey(fontStore,0,0);
 }

@@ -24,10 +24,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <string>
+#include <string.h>
 
 #include "nuvieDefs.h"
-#include "Screen.h"
 #include "NuvieBmpFile.h"
 
 #define NUVIEBMPFILE_MAGIC 0x4d42 // 'BM'
@@ -311,16 +310,6 @@ unsigned char *NuvieBmpFile::getRawIndexedDataCopy()
   }
   memcpy(copy, data, infoHeader.width*infoHeader.height);
   return copy;
-}
-
-SDL_Surface *NuvieBmpFile::getSdlSurface8(Screen *screen)
-{
-  if(data == NULL || infoHeader.bits != 8)
-  {
-    return NULL;
-  }
-
-  return screen->create_sdl_surface_from(data, 8, infoHeader.width, infoHeader.height, infoHeader.width);
 }
 
 SDL_Surface *NuvieBmpFile::getSdlSurface32(std::string filename)

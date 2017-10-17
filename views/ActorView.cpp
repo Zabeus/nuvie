@@ -121,7 +121,7 @@ void ActorView::Display(bool full_redraw)
    update_display = false;
    if(MD)
    {
-     fill_md_background(area);
+     fill_md_background(bg_color, area);
      screen->blit(area.x+1,area.y+16,portrait_data,8,portrait->get_portrait_width(),portrait->get_portrait_height(),portrait->get_portrait_width(), true);
    }
    else
@@ -280,21 +280,36 @@ void ActorView::display_actor_stats()
  return;
 }
 
+GUI_status ActorView::MouseWheel(sint32 x, sint32 y)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	int xpos, ypos;
+    screen->get_mouse_location(&xpos, &ypos);
+
+    xpos -= area.x;
+    ypos -= area.y;
+	if(xpos < 0 || ypos > area.y + area.h - 7)
+		return GUI_PASS; // goes to MsgScroll
+#endif
+ if(y > 0)
+ {
+  View::callback(BUTTON_CB, left_button, Game::get_game()->get_view_manager());
+ }
+ else if(y < 0)
+ {
+  View::callback(BUTTON_CB, right_button, Game::get_game()->get_view_manager());
+ }
+ return GUI_YUM;
+}
+
 GUI_status ActorView::MouseDown(int x, int y, int button)
 {
-	if(button == SDL_BUTTON_WHEELUP) {
-		View::callback(BUTTON_CB, left_button, Game::get_game()->get_view_manager());
-		return GUI_YUM;
-	} else if(button == SDL_BUTTON_WHEELDOWN) {
-		View::callback(BUTTON_CB, right_button, Game::get_game()->get_view_manager());
-		return GUI_YUM;
-	}
 	return GUI_PASS;
 }
 
 /* Move the cursor around and use command icons.
  */
-GUI_status ActorView::KeyDown(SDL_keysym key)
+GUI_status ActorView::KeyDown(SDL_Keysym key)
 {
 	if(!show_cursor) // FIXME: don't rely on show_cursor to get/pass focus
 		return(GUI_PASS);

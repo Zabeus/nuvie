@@ -1769,7 +1769,7 @@ bool U6UseCode::play_instrument(Obj *obj, UseCodeEvent ev)
                  : "musical instrument";
     if(items.data_ref)
     {
-            SDLKey key = ((EventInput*)items.data_ref)->key;
+            SDL_Keycode key = ((EventInput*)items.data_ref)->key;
             ActionKeyType key_type = ((EventInput*)items.data_ref)->action_key_type;
             if(key == SDLK_0) DEBUG(0,LEVEL_WARNING,"FIXME: %s: modulate 0\n", musicmsg);
             if(key == SDLK_1) DEBUG(0,LEVEL_WARNING,"FIXME: %s: modulate 1\n", musicmsg);
@@ -3430,4 +3430,10 @@ bool U6UseCode::cannot_unready(Obj *obj)
 		return true;
 
 	return false;
+}
+bool U6UseCode::use_harpsichord(Obj *obj, UseCodeEvent ev) {
+  if(ev == USE_EVENT_SEARCH) {
+    return search_container(obj);
+  }
+  return play_instrument(obj, ev);
 }

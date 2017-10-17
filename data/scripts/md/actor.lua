@@ -9,6 +9,7 @@ WT_PLAYER                 = 0x2  --player mode
 
 WT_SLEEP                  = 0x91
 
+ACTOR_STAT_DMG = 7
 --Actor stats table
 --[obj_num] = {str,dex,int,hp,alignment,,damage??,,,,,,,,,,,,,,,,}
 actor_tbl = {
@@ -112,6 +113,17 @@ actor_tbl = {
 [403] = {20,20,10,255,ALIGNMENT_EVIL,99,12,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 }
 
+function  is_actor_stat_bit_set(obj_n, bit_number)
+   local stats = actor_tbl[obj_n]
+   if stats ~= nil then
+      if stats[23 - bit_number] == 1 then
+         return true
+      end
+   end
+
+   return false
+end
+
 g_party_is_warm = false
 
 -- Berry logic
@@ -212,6 +224,21 @@ function actor_set_blue_berry_counter(new_value)
    timer_set(16*3, new_value)
 end
 
+function actor_clear_berry_counters(actor_num)
+   timer_set(actor_num*3, 0)
+   timer_set(actor_num*3+1, 0)
+   timer_set(actor_num*3+2, 0)
+end
+
+function actor_get_damage(actor)
+   local stat = actor_tbl[actor]
+   if stat ~= nil then
+      return stat[ACTOR_STAT_DMG]
+   end
+
+   return nil
+end
+
 --
 -- actor_init(actor)
 --
@@ -247,13 +274,377 @@ function actor_init(actor, alignment)
    
 end
 
-function actor_map_dmg(actor, map_x, map_y, map_z)
-	--FIXME
-end
 
 function subtract_map_movement_pts(actor)
    local points = map_get_impedence(actor.x, actor.y, actor.z, false) + 5
    subtract_movement_pts(actor, points)
+end
+
+function actor_divide(actor)
+
+   local random = math.random
+   local from_x, from_y, from_z = actor.x, actor.y, actor.z
+
+   for i=1,8 do
+
+      local new_x = wrap_coord(random(1, 2) + from_x - 1, from_z)
+      local new_y = wrap_coord(random(1, 2) + from_y - 1, from_z)
+
+      if map_can_put(new_x, new_y, from_z) then
+
+         --FIXME need to call sub_2C657 which I think updates the existing actor
+         Actor.clone(actor, new_x, new_y, from_z)
+         printfl("ACTOR_DIVIDES", actor.name)
+         return
+      end
+   end
+end
+
+function defender_update_alignment(attacker, defender, damage)
+   if defender.luatype ~= "actor" then
+      return
+   end
+
+   if defender.align == ALIGNMENT_NEUTRAL and defender.in_party == false and (defender.wt <= 0x10 or defender.wt >= 0x80) then
+      if attacker.wt == WT_PLAYER and is_actor_stat_bit_set(defender.obj_n, 14) and damage > 0 then
+         printfl("ACTOR_ATTACKS", defender.name)
+      end
+
+      if defender.actor_num >= 0xc0 or defender.wt < 0x80 then
+         if attacker.align == ALIGNMENT_GOOD and defender.align ~= ALIGNMENT_EVIL and defender.wt ~= ALIGNMENT_CHAOTIC then
+            defender.align = ALIGNMENT_EVIL
+         end
+
+         if defender.wt >= 0xc0 then
+            defender.wt = 8
+         end
+      else
+         if attacker.wt == WT_PLAYER then
+            defender.wt = 0xa0
+         end
+      end
+   end
+end
+
+function canal_worm_eat_body(worm_actor)
+   --FIXME
+   --only eat if a body was created when the actor was killed.
+end
+
+function actor_handle_damage(defender)
+   if defender.obj_n == 370 or defender.hp == 0 then --OBJ_ROCKWORM_BASE
+      return
+   end
+
+   local hp_level = math.floor(((defender.hp * 4) / defender.max_hp))
+   if hp_level == 0 then
+      printfl("ACTOR_CRITICAL", defender.name)
+      --FIXME giant_maw check
+      local wt = defender.wt
+      if wt == 0xd then
+         defender.wt = 0x11
+         --FIXME if actor qaul ~= 0 then set actor.get(qual).wt = 0x11
+      elseif wt ~= 6 and wt ~= 0xe and wt ~= 2 and wt ~= 1 and wt ~= 0 and wt ~= 0x11 and wt ~= 0x19
+            and ( is_actor_stat_bit_set(defender.obj_n, 7) or is_actor_stat_bit_set(defender.obj_n, 14) ) then
+         if actor_int_adj(defender) >= 5 and defender.obj_n ~= 145 then --OBJ_MONSTER_FOOTPRINTS
+            defender.wt = 7
+         end
+      end
+   elseif hp_level < 4 then
+      local suffix
+      if is_actor_stat_bit_set(defender.obj_n, 14) and is_actor_stat_bit_set(defender.obj_n, 7) then
+         suffix = i18n("DAMAGED")
+      else
+         suffix = i18n("WOUNDED")
+      end
+
+      local damage_type
+      if hp_level == 1 then
+         damage_type = i18n("HEAVILY")
+      elseif hp_level == 2 then
+         damage_type = i18n("LIGHTLY")
+      elseif hp_level == 3 then
+         damage_type = i18n("BARELY")
+      end
+      printfl("ACTOR_HIT_MESSAGE", defender.name, damage_type, suffix)
+
+   end
+end
+
+function actor_take_hit(attacker, defender, max_dmg, damage_mode)
+   if max_dmg == -1 then
+      max_dmg = 1
+   elseif max_dmg > 1 and max_dmg < 255 then
+      max_dmg = math.random(1, max_dmg)
+   end
+
+   local armour_value = 0
+   if damage_mode ~= 2 then
+      if defender.luatype == "actor" then
+         armour_value = actor_get_ac(defender)
+      elseif defender.obj_n == 388 and defender.frame_n == 0 then --OBJ_GLOW_WORM
+         armour_value = 2
+      end
+   end
+
+   if armour_value > 0 and max_dmg < 255 then
+      max_dmg = max_dmg - math.random(1, armour_value)
+   end
+
+   if max_dmg > 0 then
+      if (attacker.align == ALIGNMENT_EVIL or attacker.align == ALIGNMENT_CHAOTIC)
+              and defender.luatype == "actor" and defender.in_party
+              and party_is_in_combat_mode() == false
+              and player_is_in_solo_mode() == false then
+         party_set_combat_mode(true)
+      end
+
+      attacker.exp = attacker.exp + actor_hit(defender, max_dmg, damage_mode)
+   else
+      --FIXME call either sub_19088 or sub_18F7D
+      printfl("ACTOR_GRAZED", defender.name)
+   end
+
+   if defender.luatype == "actor" then
+      --FIXME only call if defender == selected obj
+      defender_update_alignment(attacker, defender, max_dmg)
+      if defender.hp == 0 then
+         if attacker.obj_n == 379 then --OBJ_CANAL_WORM
+            canal_worm_eat_body(attacker)
+         end
+      else
+         if is_actor_stat_bit_set(attacker.obj_n, 2) and math.random(0, 3) == 0 and actor_immune_to_dmg(defender) == false then
+            printfl("ACTOR_PARALYZED", defender.name)
+            defender.paralyzed = true
+         end
+
+         if defender.alive and max_dmg > 0 then
+            actor_handle_damage(defender)
+         end
+      end
+   end
+
+end
+
+function actor_immune_to_dmg(actor)
+   local actor_num = actor.actor_num
+   local obj_n = actor.obj_n
+   if obj_n == 381 or obj_n == 390 or obj_n == 391 or obj_n == 358 or obj_n == 382 then
+      return true
+   end
+
+   if actor_num == 0x5c or actor_num == 0x5d or actor_num == 0x59 or actor_num == 0x5a or actor_num == 0x54 or actor_num == 0x52
+      or actor_num == 0x6d or actor_num == 0x68 or actor_num == 0x67 or actor_num == 0x69 or actor_num == 0x77 or actor_num == 0x78
+      or actor_num == 0x40 or actor_num == 0x3c then
+      return true
+   end
+
+   return false
+end
+
+function actor_print_custom_hit_message(actor)
+   local actor_num = actor.actor_num
+   if actor_num == 0x69 then
+      printfl("ACTOR_CRITICAL", Actor.get(0x19).name)
+   elseif actor_num == 0x3c then
+      printfl("ACTOR_CRITICAL", actor.name)
+   elseif actor_num == 0x52 then
+      printfl("ACTOR_HIT_MESSAGE", actor.name, i18n("HEAVILY"), i18n("WOUNDED"))
+   elseif actor_num == 0x68 then
+      if Actor.get_talk_flag(actor, 2) then
+         printfl("ACTOR_CRITICAL", actor.name)
+      else
+         printfl("ACTOR_HIT_MESSAGE", actor.name, i18n("HEAVILY"), i18n("WOUNDED"))
+      end
+      Actor.set_talk_flag(actor, 5)
+      Actor.talk(actor)
+   else
+      printl("IT_HAS_NO_EFFECT")
+   end
+end
+
+local RED_HIT_TILE = 257
+local BLUE_HIT_TILE = 258
+
+function hit_target(target, hit_tile)
+   if map_is_on_screen(target.xyz) then
+      if target.luatype == "actor" and target.in_party then
+         play_md_sfx(1, PLAY_ASYNC)
+      else
+         play_md_sfx(2, PLAY_ASYNC)
+      end
+      hit_anim(target.x, target.y) --FIXME need to apply hit colour tile param here.
+   end
+
+   if target.luatype == "actor" then
+      --FIXME
+--      les     bx, objlist_unk_1af1_ptr
+--      mov     al, es:[bx+si]
+--      or      al, 8
+--      mov     es:[bx+si], al
+
+      if target.asleep then
+         target.asleep = false
+      end
+   end
+
+end
+
+-- Hit an actor or object
+function actor_hit(defender, max_dmg, damage_mode)
+
+
+   local defender_obj_n = defender.obj_n
+   local exp_gained = 0
+   local player_loc = player_get_location()
+
+   if defender.z ~= player_loc.z or max_dmg < 0 then
+      return 0
+   end
+
+   if defender.luatype == "actor" then
+      print("actor_hit("..defender.actor_num..")\n")
+
+      if defender.actor_num == 0 and defender.hp <= max_dmg and g_current_dream_stage == 0xe0 then
+        max_dmg = defender.hp - 1
+      end
+
+      if damage_mode == 1 then
+         hit_target(defender, BLUE_HIT_TILE)
+      else
+         hit_target(defender, RED_HIT_TILE)
+      end
+
+      if actor_immune_to_dmg(defender) then
+         actor_print_custom_hit_message(defender)
+         defender.hp = 0xff
+         if defender_obj_n == 391 then --OBJ_YOUR_MOTHER
+            local gender_title = ""
+            if player_get_gender() == 0 then
+               gender_title = i18n("MAN")
+            else
+               gender_title = i18n("WOMAN")
+            end
+            printfl("HOW_DARE_YOU_YOUNG_PERSON", gender_title)
+            actor_take_hit(defender, Actor.get(0), 45, 0)
+            actor_take_hit(defender, Actor.get(0), 45, 0)
+            actor_take_hit(defender, Actor.get(0), 45, 0)
+         elseif defender.actor_num == 0x6d or defender.actor_num == 0x67 then
+            Actor.set_talk_flag(Actor.get(0x6b), 3)
+            local dream_actor = Actor.get(0)
+            Actor.move(dream_actor, g_prev_player_x, g_prev_player_y, dream_actor.z)
+         elseif defender.actor_num == 0x40 then --Rasputin
+            --FIXME attack_rasputin()
+         end
+      else
+         if damage_mode == 3 and is_actor_stat_bit_set(defender_obj_n, 3) then
+            printl("IT_HAS_NO_EFFECT")
+            return 0
+         end
+         if is_actor_stat_bit_set(defender_obj_n, 4) then
+            max_dmg = max_dmg * 2
+         end
+
+         if (damage_mode == 0 and actor_num ~= 0) or g_current_dream_stage ~= 0xe0 then --or word_41184 ~= 0xe0
+            if math.random(6, 0x64) <= max_dmg then
+               --FIXME actor_add_blood()
+            end
+            local hp = defender.hp
+            if hp <= max_dmg then
+               --FIXME exp_gained = kill_actor()
+            else
+               defender.hp = hp - max_dmg
+
+               if defender.wt == 9 or defender.wt == 11 then
+                  defender.wt = 8
+               elseif defender.wt == 10 or defender.wt == 12 then
+                  defender.wt = 0x1b
+               end
+
+               if is_actor_stat_bit_set(defender_obj_n, 6) then
+                  actor_divide(defender)
+               end
+            end
+         end
+      end
+   else
+      actor_hit_obj(defender, max_dmg, damage_mode)
+   end
+
+   return exp_gained
+end
+
+function attack_bucket(bucket, damage_mode)
+   if damage_mode == 3 and bucket.frame_n == 2 then
+      printl("THE_ICE_THAWS")
+      bucket.frame_n = 1
+   elseif damage_mode == 1 and bucket.frame_n == 1 then
+      printl("THE_WATER_FREEZES")
+      bucket.frame_n = 2
+   end
+end
+
+function actor_hit_obj(obj, dmg, damage_mode)
+   if obj.qty == 0 or not is_obj_attackable(obj) then
+      if obj.obj_n == 160 then --OBJ_BUCKET
+         attack_bucket(obj, damage_mode)
+      end
+      return
+   end
+
+   if damage_mode == 0 or damage_mode == 3 or is_plant_obj(obj) then
+
+      if damage_mode == 1 then
+         hit_target(obj, BLUE_HIT_TILE)
+      else
+         hit_target(obj, RED_HIT_TILE)
+      end
+
+      if damage_mode == 3 and is_obj_burnable(obj) then
+         dmg = obj.qty
+      end
+
+      if obj.qty <= dmg then
+         if obj.obj_n == 217 then --OBJ_GLASS_PITCHER
+            play_md_sfx(0x1a)
+            obj.obj_n = 218 --OBJ_BROKEN_CRYSTAL
+            obj.frame_n = 0
+            if g_in_dream_mode and g_current_dream_stage == 0x44 then
+               local pitcher
+               for tmp_obj in find_obj_from_area(0x21, 0x33, 2, 0x1c, 0x10) do
+                  if tmp_obj.obj_n == 217 then --OBJ_GLASS_PITCHER
+                     pitcher = tmp_obj
+                  end
+               end
+               if pitcher == nil then
+                  Actor.set_talk_flag(0x54, 6)
+               end
+            end
+         else
+            play_md_sfx(0)
+            Obj.removeFromEngine(obj)
+         end
+      else
+         if obj.obj_n == 307 then --OBJ_DEVIL_POD
+            printl("THE_POD_SPLITS_OPEN")
+            local pod_devil = Actor.new(384, obj.x, obj.y, obj.z)
+
+            actor_init(pod_devil)
+            Actor.move(pod_devil, obj.x, obj.y, obj.z)
+            Obj.removeFromEngine(obj)
+         else
+            if obj.obj_n == 388 then --OBJ_GLOW_WORM
+               obj.frame_n = 0
+               obj.quality = math.random(0xb, 0x12)
+               play_md_sfx(0x22)
+            end
+            obj.qty = obj.qty - dmg
+         end
+
+      end
+
+   end
+
 end
 
 function actor_move(actor, direction, flag)
@@ -263,8 +654,11 @@ function actor_move(actor, direction, flag)
    if direction == DIR_SOUTH then y = y + 1 end
    if direction == DIR_EAST then x = x + 1 end
    if direction == DIR_WEST then x = x - 1 end
-   
-   actor.direction = direction
+
+   if actor.obj_n ~= 382 then --COKER FIXME need to have an update frame function here.
+      actor.direction = direction
+   end
+
    local did_move = Actor.move(actor, x, y, z)
    
    --FIXME need more logic here.
@@ -278,122 +672,66 @@ function actor_move(actor, direction, flag)
    return did_move
 end
 
-function worktype_99_coker_move_to_coal_vein(actor)
-   if actor_move(actor, DIR_NORTH) == false then
-      local vein = map_get_obj(actor.x, actor.y-1, actor.z, 446) --OBJ_VEIN_OF_COAL FIXME should be -2 not -1 need to fix actor_move for coker.
-      if vein ~= nil then
-         if map_is_on_screen(actor.x, actor.y, actor.z) then
-            play_md_sfx(0x10)
-         end
-         actor.wt = 0x9A
-      end
+function actor_move_diagonal(actor, x_direction, y_direction)
+   local x,y,z = actor.x, actor.y, actor.z
+   local direction
+
+   if y_direction == DIR_NORTH then
+      y = y - 1
+      direction = x_direction == DIR_EAST and DIR_NORTHEAST or DIR_NORTHWEST
    end
+   if y_direction == DIR_SOUTH then
+      y = y + 1
+      direction = x_direction == DIR_EAST and DIR_SOUTHEAST or DIR_SOUTHWEST
+   end
+   if x_direction == DIR_EAST then
+      x = x + 1
+      direction = y_direction == DIR_NORTH and DIR_NORTHEAST or DIR_SOUTHEAST
+   end
+   if x_direction == DIR_WEST then
+      x = x - 1
+      direction = y_direction == DIR_NORTH and DIR_NORTHWEST or DIR_SOUTHWEST
+   end
+
+   ----dgb("actor_move_diagonal("..actor.name..", "..direction_string(direction)..")\n");
+   actor.direction = y_direction
+   local did_move = Actor.move(actor, x, y, z)
+
+   if did_move then
+      subtract_map_movement_pts(actor)
+   end
+
+   return did_move and 1 or 0
 end
 
-function worktype_9A_coker_drop_coal(actor)
-   local obj = map_get_obj(actor.x, actor.y+1, actor.z, 188) --OBJ_CONVEYOR_BELT
-   if obj ~= nil then
-      local coal = Obj.new(447) --OBJ_HUGE_LUMP_OF_COAL
-      Obj.moveToMap(coal, actor.x, actor.y+1, actor.z)
-   else
-      obj = map_get_obj(actor.x, actor.y+1, actor.z, 192) --OBJ_BARE_ROLLERS
-      if obj == nil then
-         actor_move(actor, DIR_SOUTH)
-         return
-      end
-   end
-   actor.wt = 0x9B
-end
+function actor_update_frame(actor, direction)
+   local obj_n = actor.obj_n
 
-function worktype_9B_coker_wait_for_coal_to_move_away(actor)
-   local obj = map_get_obj(actor.x, actor.y+1, actor.z, 447) --OBJ_HUGE_LUMP_OF_COAL
-   if obj == nil then
-      obj = map_get_obj(actor.x, actor.y+1, actor.z, 192) --OBJ_BARE_ROLLERS
-      if obj == nil then
-         actor.wt = 0x99
-      end
-   end
-end
-
-function worktype_9D_stoker_wait_for_coal(actor)
-   local coal
-   coal = map_get_obj(actor.x, actor.y+1, actor.z, 447) --OBJ_HUGE_LUMP_OF_COAL
-   
-   if coal ~= nil then
-      while coal ~= nil do
-         Obj.removeFromEngine(coal)
-         coal = map_get_obj(actor.x, actor.y+1, actor.z, 447) --OBJ_HUGE_LUMP_OF_COAL
-      end
-      actor.wt = 0x9E
-   end
-   
-end
-
-function worktype_9E_stoker_walk_to_furnace(actor)
-   if actor_move(actor, DIR_NORTH) == false then
-      local furnace = map_get_obj(actor.x, actor.y-1, actor.z, 233)
-      if furnace == nil then
-         furnace = map_get_obj(actor.x+1, actor.y-1, actor.z, 233)
-      end
-      
-      if furnace ~= nil then
-         if Actor.get_talk_flag(0x72, 2) == false then
-            activate_power_system()
-         else
-            if Actor.get_talk_flag(0x73, 2) == false or Actor.get_talk_flag(0x71, 3) == true then
-               if Actor.get_talk_flag(0x71, 3) == true then
-                  Actor.clear_talk_flag(0x73, 2)
-                  Actor.clear_talk_flag(0x71, 3)
-                  --FIXME sub_3F740
+   --actor.direction = direction
+   if obj_n >= 342 or obj_n <= 358 then --human actors
+      --print("actor: "..actor.actor_num.."("..actor.x..","..actor.y..","..actor.z..")")
+      for obj in objs_at_loc(actor.x, actor.y, actor.z) do
+         if obj ~= nil then
+            local tmp_obj_n = obj.obj_n
+            --print("actor:"..actor.actor_num.." obj: " .. tmp_obj_n)
+            if tmp_obj_n == 406 or (tmp_obj_n == 407) or tmp_obj_n == 216 or tmp_obj_n == 289 then
+               --sit here
+               if tmp_obj_n ==  406 then -- OBJ_BENCH
+                  actor.frame_n = 3
+               elseif tmp_obj_n == 407 then -- OBJ_COUCH
+                  actor.frame_n = 4 + 3
+               elseif tmp_obj_n == 289 then -- OBJ_DREAM_MACHINE2
+                  actor.frame_n = 8 + 3
+               else
+                  actor.frame_n = math.floor(direction/2) * 4 + 3
                end
-               Actor.set_talk_flag(0x73, 2)
-               --FIXME animate_tiles
-               midgame_cutscene_2()
+
+               return
             end
          end
-         actor.wt = 0x9C
-      else
-         stoker_blocked(actor)
       end
-   end
-end
+      --standing
 
-function stoker_blocked(stoker)
-   if map_is_on_screen(stoker.x, stoker.y, stoker.z) then
-      printl("STOKERS_PATH_IS_BLOCKED")
-      play_md_sfx(0)
-   end  
-end
-
-function worktype_9C_stoker_return_to_conveyor_belt(actor)
-   if map_get_obj(actor.x, actor.y+2, actor.z, 191) == nil then --OBJ_CONVEYOR_BELT2
-      if actor_move(actor, DIR_SOUTH) == false then
-         stoker_blocked(actor)
-      end
-   else
-      actor.wt = 0x9D
-   end
-end
-
-local worktype_tbl = {
-   [0x99]=worktype_99_coker_move_to_coal_vein,
-   [0x9a]=worktype_9A_coker_drop_coal,
-   [0x9b]=worktype_9B_coker_wait_for_coal_to_move_away,
-   [0x9c]=worktype_9C_stoker_return_to_conveyor_belt,
-   [0x9d]=worktype_9D_stoker_wait_for_coal,
-   [0x9e]=worktype_9E_stoker_walk_to_furnace,
-}
-
-function perform_worktype(actor)
-   print("wt="..actor.wt.."\n")
-   local mpts = actor.mpts
-   if worktype_tbl[actor.wt] ~= nil then
-      local func = worktype_tbl[actor.wt]
-      func(actor)
-   end
-   
-   if mpts == actor.mpts then
-      subtract_movement_pts(actor, 10)
    end
 end
 
@@ -407,11 +745,24 @@ function revive_avatar()
    end
 end
 
+function actor_resurrect(actor)
+   --FIXME do we need to do anything here?
+end
+
 function avatar_falls_unconscious()
    printl("OVERCOME_BY_YOUR_WOUNDS_YOU_FALL_UNCONSCIOUS")
    
    fade_out()
-   
+
+   local input
+   while input == nil do
+      --canvas_update()
+      input = input_poll()
+      if input ~= nil then
+         break
+      end
+   end
+
    local location
    local target
    if Actor.get_talk_flag(0x46, 3) then
@@ -423,7 +774,9 @@ function avatar_falls_unconscious()
    end
    
    printfl("YOU_AWAKEN_BACK_AT_FEELING_RESTORED", location)
-   
+
+   input_select(nil, true)
+
    party_resurrect_dead_members()
    
    for actor in party_members() do
@@ -461,7 +814,44 @@ end
 function party_update()
    local avatar = Actor.get(1)
    if avatar.hp == 0 or (g_in_dream_mode == true and Actor.get(0).alive == false) then
-      revive_avatar()
+      if g_in_dream_mode == true then
+         g_objlist_1d22_unk = 0
+         if g_prev_player_x == 0 then
+            printl("YOU_SHAKE_YOURSELF_AWAKE_FROM_THE_NIGHTMARE")
+            wake_from_dream()
+         else
+            local avatar = Actor.get(1)
+            local dream_actor = Actor.get(0)
+            dream_actor.hp = avatar.max_hp
+            dream_actor.poisoned = false
+            Actor.move(dream_actor, g_prev_player_x, g_prev_player_y, dream_actor.z)
+            party_set_combat_mode(false)
+            printl("YOU_FEEL_YOUR_DREAM_CONSCIOUSNESS_RETURNING")
+            if g_current_dream_stage == 0xc0 then
+               if not Actor.get_talk_flag(0x66, 2)
+                  and Actor.get_talk_flag(0x66, 3)
+                  and Actor.get_talk_flag(0x66, 4)
+                  and not Actor.get_talk_flag(0x66, 5)
+               then
+                  for i=0,0xff do
+                     local maw = Actor.get(i)
+                     if maw.obj_n == 373 and maw.wt == 0x12 and maw.x == 0x87 and maw.y == 0x17 then
+                        Actor.kill(maw, false)
+                     end
+                  end
+                  if map_get_obj(0x7f, 0x18, dream_actor.z, 224) == nil then --OBJ_BRIDGE
+                     local bridge = Obj.new(224, 3)
+                     Obj.moveToMap(bridge, 0x7f, 0x18, dream_actor.z)
+                  end
+               end
+               Actor.set_talk_flag(0x66, 7)
+               local raxachk = Actor.get(0x66)
+               Actor.talk(raxachk)
+            end
+         end
+      else
+         revive_avatar()
+      end
    end
    
 end
@@ -511,7 +901,7 @@ function actor_update_all()
                            actor.wt = actor.sched_wt
                         end
 
-                        local dex_adjusted = actor_dex_adj(actor) 
+                        local dex_adjusted = actor_dex_adj(actor)
                         local dx = (actor.mpts * dex_6) - dex_adjusted * di
                         if actor.mpts >= dex_adjusted or dx > 0 or dx == 0 and dex_adjusted > dex_6 then
                            selected_actor = actor
@@ -563,23 +953,7 @@ function actor_update_all()
    display_prompt(true)
 end
 
--- [objectnum] = range
-   g_range_weapon_tbl = {
-      [40] = 6,  --Cupid's bow and arrows
-      [41] = 4, --derringer
-      [42] = 5, --revolver
-      [43] = 4, --shotgun
-      [44] = 7, --rifle (whole screen)
-      [45] = 7, --combine (whole screen)
-      [46] = 7, --elephant gun (whole screen)
-      [47] = 4, -- sling
-      [48] = 5, -- bow
-      [129] = 2, --weed sprayer
-      [240] = 6, --heat ray gun
-      [241] = 6, --freeze ray gun
-      [261] = 2, --spray gun
-      [313] = 7, --M60 machine gun (not sure, I think this is a scripted event?)
-   }
+
 
 local projectile_weapon_tbl = --FIXME weed sprayer and spray gun
 {
@@ -598,59 +972,6 @@ local projectile_weapon_tbl = --FIXME weed sprayer and spray gun
 [242] = {335, 90,4, 0}, -- freeze ray gun --FIXME: rot, speed, amount (has 3 modes)
 [313] = {267, 90,4, 0}, -- M60 machine gun --FIXME: rot, speed, amount (if even used)
 
-}
-
-weapon_dmg_tbl = {
-[16] = 30, --bloody saber
-[40] = 1, --Cupid's bow and arrows (charms)
-[41] = 15, --derringer
-[42] = 18, --revolver
-[43] = 20, --shotgun
-[44] = 30, --rifle
-[45] = 30, --Belgian combine
-[46] = 45, --elephant gun
-[47] = 8, --sling
-[48] = 12, --bow
-[49] = 15, --hatchet
-[50] = 20, --axe
-[51] = 10, --ball-peen hammer
-[52] = 25, --sledge hammer
-[54] = 10, --knife
-[55] = 20, --machete
-[56] = 25, --saber
-[65] = 15, --pick
-[66] = 8, --shovel
-[67] = 10, --hoe
-[68] = 10, --rake
-[69] = 15, --pitchfork
-[70] = 12, --cultivator
-[71] = 20, --scythe
-[72] = 10, --saw
-[102] = 12, --pry bar
---[109] = 1, --torch
---[110] = 1, --lit torch
---[111] = 1, --candlestick
---[112] = 1, --lit candle
---[113] = 1, --candelabra
---[114] = 1, --lit andelabra
---[115] = 1, --oil lamp
---[116] = 1, --lit oil lamp
---[117] = 1, --lantern
---[118] = 1, --lit lantern
-[129] = 60, --weed sprayer -- FIXME: no damage normally. Only effects plants?
---[136] = 1, --tongs
-[241] = 20, --heat ray gun
-[242] = 10, --freeze ray gun
---[243] = 1, --martian ritual pod knife
-[261] = 60, --spray gun -- FIXME: no damage normally. Only effects plants?
-[263] = 10, --martian hoe (couldn't be equipped in original)
-[264] = 20, --martian scythe (couldn't be equipped in original)
-[265] = 15, --martian pitchfork (couldn't be equipped in original)
-[266] = 10, --martian rake (couldn't be equipped in original)
-[267] = 8, --martian shovel (couldn't be equipped in original)
-[313] = 254, --M60 machine gun (scripted to only attack and kill the big bad)
-[327] = 15, --martian pick (couldn't be equipped in original)
-[401] = 12, --pool cue
 }
 
 armour_tbl =
@@ -695,35 +1016,19 @@ armour_tbl =
 --[234] = 0, --martian jewelry
 }
 
-function out_of_ammo(attacker, weapon, print_message) -- untested function
+function actor_get_ac(actor)
+   local ac = 0
 
-	local weapon_obj_n = weapon.obj_n
+   for obj in actor_inventory(actor) do
+      if obj.readied then
 
-	if ((weapon_obj_n == 41 or weapon_obj_n == 42) and Actor.inv_has_obj_n(attacker, 57) == false) --derringer, revolver, pistol rounds
-	    or (weapon_obj_n == 43 and Actor.inv_has_obj_n(attacker, 58) == false) --shotgun, shotgun shell
-	    or (weapon_obj_n == 44 and Actor.inv_has_obj_n(attacker, 59) == false) --rifle, rifle round
-	    or (weapon_obj_n == 45 and weapon.quality == 0 and (Actor.inv_has_obj_n(attacker, 58) == false or Actor.inv_has_obj_n(attacker, 59) == false)) --belgian combine (combine), shotgun shell, rifle round
-	    or (weapon_obj_n == 45 and weapon.quality == 1 and Actor.inv_has_obj_n(attacker, 59) == false) --belgian combine (rifle), rifle round
-	    or (weapon_obj_n == 45 and weapon.quality == 2 and Actor.inv_has_obj_n(attacker, 58) == false) --belgian combine (shotgun), shotgun shell
-	    or (weapon_obj_n == 46 and Actor.inv_has_obj_n(attacker, 60) == false) --elephant gun, elephant gun round
-	    or (weapon_obj_n == 47 and Actor.inv_has_obj_n(attacker, 63) == false) --sling, sling stone
-	    or ((weapon_obj_n == 240 or weapon_obj_n == 241 or weapon_obj_n == 129 or weapon_obj_n == 261) and obj.qty == 0) then --heat ray gun, freeze ray gun, weed sprayer, spray gun
-		if(print_message) then
-			printl("OUT_OF_AMMUNITION")
-			--FIXME add sfx here
-		end
-		return true
-	end
-
-	if weapon_obj_n == 48 and Actor.inv_has_obj_n(attacker, 64) == false then --bow, arrows
-		if(print_message) then
-			printl("OUT_OF_ARROWS")
-			--FIXME add sfx here
-		end
-		return true
-	end
-
-	return false
+         local armour = armour_tbl[obj.obj_n]
+         if armour ~= nil then
+            ac = ac + armour
+         end
+      end
+   end
+   return ac
 end
 
 local clothing_warmth_tbl = {
@@ -851,14 +1156,60 @@ function actor_int_adj(actor)
    return int
 end
 
-
-function actor_map_dmg(actor, map_x, map_y, map_z) --FIXME
+function actor_map_dmg(actor, map_x, map_y, map_z)
    local obj_n = actor.obj_n
    local actor_type = actor_tbl[obj_n]
-   
+   local player_loc = player_get_location()
+
+
+   if is_actor_stat_bit_set(obj_n, 8) or is_actor_stat_bit_set(obj_n, 10)
+           or actor.z ~= player_loc.z
+           or actor_find_max_wrapped_xy_distance(actor, player_loc.x, player_loc.y) > 40 then
+      return
+   end
+
    if actor.alive == false or actor.hit_flag == true then
       return
    end
+--print("actor_map_dmg("..actor.actor_num..")\n")
+
+   for obj in objs_at_loc(actor.x, actor.y, actor.z) do
+      local tile_num = obj.tile_num_original
+      if tile_get_flag(tile_num, 3, 2) == false and tile_get_flag(tile_num, 1, 3) == true then --force passable and damaging
+         actor_take_damage_from_obj(actor, obj)
+      end
+
+   end
+
+   actor_update_frame(actor, actor.direction)
+end
+
+function actor_take_damage_from_obj(actor, obj)
+   if actor_immune_to_dmg(actor) or actor.alive == false then
+      return
+   end
+
+   local obj_n = obj.obj_n
+   local damage = 0
+   local damage_mode = 0
+
+   if obj_n == 168 then --OBJ_PORCUPOD
+      damage = math.random(1, 0x14)
+   elseif obj_n == 209 then --OBJ_STEAM_LEAK
+      damage_mode = 3
+      if actor.actor_num ~= 6 then
+         damage = math.random(math.floor(actor.hp / 2), math.floor(actor.max_hp / 2))
+      end
+   elseif obj_n == 215 then --OBJ_POWER_CABLE1
+      play_md_sfx(0x15)
+      damage = math.random(1, 0x14) + math.random(1, 0x14)
+   elseif obj_n == 381 then --OBJ_DUST_DEVIL
+      damage = math.random(1, 0xa) + math.random(1, 0xa)
+   elseif obj_n == 463 then --hidden effect obj
+      --FIXME here
+   end
+
+   actor_hit(actor, damage, damage_mode)
 end
 
 function actor_remove_charm(actor)
@@ -990,7 +1341,7 @@ function advance_time(num_turns)
                            if rand(0, 1) == 0 then
                               if cold_status == 2 then
                                  printfl("IS_FREEZING", actor.name)
-                                 actor_hit(actor, rand(1, 2))                              
+                                 actor_hit(actor, rand(1, 2))
                               end
                            else
                               printfl("IS_FREEZING", actor.name)
@@ -1077,9 +1428,9 @@ function advance_time(num_turns)
    end
    
    local minute = clock_get_minute()
-   
+
    clock_inc(num_turns)
-   	
+
    if minute + num_turns >= 60 then
       
       update_watch_tile()
@@ -1109,7 +1460,7 @@ function advance_time(num_turns)
                      end
                   else
                      Obj.removeFromEngine(oxium)
-                     if Actor.inv_get_obj_n(131) ~= nil then
+                     if Actor.inv_get_obj_n(actor, 131) ~= nil then
                         if actor.hypoxia then
                            actor.hypoxia = false
                            printfl("BREATHES_EASIER", actor.name)
@@ -1124,7 +1475,7 @@ function advance_time(num_turns)
                else
                   if actor.hypoxia == false then
                      actor.hypoxia = true
-                     printfl("GASPS_FOR_AIR", actor.name)                     
+                     printfl("GASPS_FOR_AIR", actor.name)
                   end
                end
             end
@@ -1168,25 +1519,71 @@ function actor_radiation_check(actor, obj)
    end
 end
 
-function actor_get_obj(actor, obj) -- FIXME need to limit inventory slots
+function actor_get_obj(actor, obj, container) -- FIXME need to limit inventory slots
+
+   --FIXME handle getting into container.
 
 	if obj.getable == false then
-		print("\nThat is not possible.")
-		return false
-	end
-	
-	if Actor.can_carry_obj_weight(actor, obj) == false then
-		print("\nThe total is too heavy.")
+		printnl("THAT_IS_NOT_POSSIBLE")
 		return false
 	end
 
---		print("\nYou are carrying too much already.");
+   if actor_find_max_wrapped_xy_distance(actor, obj.x, obj.y) > 1 then
+      play_md_sfx(0x32)
+      projectile_anim(obj.tile_num, obj.x, obj.y, actor.x, actor.y, 4, false, 0)
+   end
+
+	if Actor.can_carry_obj_weight(actor, obj) == false then
+		printl("THE_TOTAL_IS_TOO_HEAVY")
+		return false
+	end
+
+   if not Actor.can_carry_obj(actor, obj) then
+      printnl("YOU_ARE_CARRYING_TOO_MUCH_ALREADY")
+      return false
+   end
 
    subtract_movement_pts(actor, 3)
 
    actor_radiation_check(actor, obj)
 
-   --FIXME more logic here.
+   if obj.obj_n == 256 then -- OBJ_CHUNK_OF_ICE
+      printnl("THE_ICE_IS_MELTING")
+   end
+
+   if obj.obj_n == 110 -- OBJ_LIT_TORCH
+           or obj.obj_n == 112
+           or obj.obj_n == 114
+           or obj.obj_n == 116
+           or obj.obj_n == 118 then
+      if not actor_has_free_arm(actor) then
+         printl("YOUR_HANDS_ARE_FULL")
+         return false
+      end
+
+      Obj.moveToInv(obj, actor.actor_num)
+      Actor.inv_ready_obj(actor, obj)
+      if obj.obj_n == 110 then -- OBJ_LIT_TORCH
+         obj.quality = 0xb4
+      end
+
+      advance_time(0)
+
+      return true
+   end
+
+   if obj.obj_n == 411 -- OBJ_SWITCH_BAR
+           or obj.obj_n == 458 -- OBJ_PANEL
+           or obj.obj_n == 314 -- OBJ_TRACKING_MOTOR
+           or obj.obj_n == 206 then -- OBJ_TIFFANY_LENS
+      if obj.quality % 2 == 0 then
+         printnl("WONT_BUDGE")
+         return false
+      end
+   end
+
+   Obj.moveToInv(obj, actor.actor_num)
+
 	return true
 end
 
@@ -1203,124 +1600,86 @@ function actor_get_max_hp(actor)
    return 1;
 end
 
-local map_entrance_tbl = {
-   {x=0x43,  y=0x51,  z=0x1},
-   {x=0x80,  y=0x8D,  z=0x0},
-   {x=0x76,  y=0x0F2, z=0x3},
-   {x=0x7A,  y=0x0C,  z=0x3},
-   {x=0x9A,  y=0x40,  z=0x4},
-   {x=0x2B2, y=0x1CC, z=0x0},
-   {x=0x73,  y=0x40,  z=0x4},
-   {x=0x29D, y=0x1CE, z=0x0},
-   {x=0x0B3, y=0x0E1, z=0x4},
-   {x=0x27B, y=0x1F1, z=0x0},
-   {x=0x0C3, y=0x70,  z=0x1},
-   {x=0x0CB, y=0x1D1, z=0x0},
-   {x=0x24,  y=0x0F1, z=0x1},
-   {x=0x31A, y=0x232, z=0x0},
-   {x=0x5C,  y=0x0F1, z=0x1},
-   {x=0x34C, y=0x25A, z=0x0},
-   {x=0x7C,  y=0x28,  z=0x4},
-   {x=0x13E, y=0x118, z=0x0},
-   {x=0x0A,  y=0x60,  z=0x5},
-   {x=0x3B7, y=0x1C4, z=0x0},
-   {x=0x5C,  y=0x0B0, z=0x5},
-   {x=0x3DC, y=0x1DD, z=0x0},
-   {x=0x5E,  y=0x29,  z=0x4}
-}
 
---returns true if the player can move to rel_x, rel_y
-function player_before_move_action(rel_x, rel_y)
-   if rel_x ~= 0 and rel_y ~= 0 then
-      return true
-   end
-   
-   local player_loc = player_get_location()
-   local z = player_loc.z
-   local x = wrap_coord(player_loc.x+rel_x,z)
-   local y = wrap_coord(player_loc.y+rel_y,z)
-   
-   for obj in objs_at_loc(x, y, z) do
-      local obj_n = obj.obj_n
-      if obj_n == 268 then --wheelbarrow
-         move_wheelbarrow(obj, rel_x, rel_y)
-         if can_move_obj(obj, rel_x, rel_y) then
-            obj.x = obj.x + rel_x
-            obj.y = obj.y + rel_y
-         end
-      elseif obj_n == 410 and can_move_obj(obj, rel_x, rel_y) then --railcar
-         move_rail_cart(obj, rel_x, rel_y)
-      elseif obj_n == 441 then --assembled drill
-         move_drill(obj, rel_x, rel_y) --update drill direction
-         if can_move_drill(obj, rel_x, rel_y) then
-            obj.x = obj.x + rel_x
-            obj.y = obj.y + rel_y
-         end
-      end
-   end
-   
-	return true
+
+--function actor_take_hit(actor, damage)
+--   local hp = actor.hp
+--   if damage >= hp and actor.actor_num == 1 then
+--      hit_anim(actor.x, actor.y)
+--      actor.hp = 0
+--   else
+--      Actor.hit(actor, damage)
+--   end
+--end
+
+function kill_actor(actor)
+   actor.hp=0
+   actor_dead(actor)
 end
 
-function can_move_drill(drill, rel_x, rel_y)
-   if can_move_obj(drill, rel_x, rel_y) then
-      return true
-   end
-   
-   local z = drill.z
-   local x = wrap_coord(drill.x+rel_x,z)
-   local y = wrap_coord(drill.y+rel_y,z)
-   
-   if map_get_obj(x, y, z, 175, true) == nil then --mine entrance
-      return false
-   end
-   
-   for obj in objs_at_loc(x, y, z) do
-      if is_blood(obj.obj_n) == false then
-         return false
-      end
-   end
-   
-   return true
+function actor_dead(actor)
+   --FIXME
 end
 
-function player_post_move_action(did_move)
-   local player_loc = player_get_location()
+function get_portrait_number(actor)
+   local NO_PORTRAIT = 255
+   local idx = actor.actor_num
+   if idx >= 0xa and idx <= 0xf then
+      idx = 0x51
+   end
 
-   if did_move then
-      update_conveyor_belt(true)
-      
-      for obj in objs_at_loc(player_loc) do
-         if (obj.obj_n == 175 or obj.obj_n == 163) then
-            if obj.obj_n == 175 then --Mine entry
-               for transfer_obj in objs_at_loc(player_loc.x, player_loc.y-1, player_loc.z) do
-                  transfer_obj.x = map_entrance_tbl[obj.quality].x
-                  transfer_obj.y = map_entrance_tbl[obj.quality].y-1
-                  transfer_obj.z = map_entrance_tbl[obj.quality].z
-               end
-            else --Mine exit
-               for transfer_obj in objs_at_loc(player_loc.x, player_loc.y+1, player_loc.z) do
-                  transfer_obj.x = map_entrance_tbl[obj.quality].x
-                  transfer_obj.y = map_entrance_tbl[obj.quality].y+2
-                  transfer_obj.z = map_entrance_tbl[obj.quality].z
-               end
-            end
-            party_use_entrance(player_loc.x, player_loc.y, player_loc.z, map_entrance_tbl[obj.quality])
+   if idx >= 0xbf then
+      return NO_PORTRAIT
+   end
+
+   if idx <= 1 then
+      if player_get_gender() == 1 then
+         idx = 0
+      else
+         idx = 1
+      end
+   elseif idx == 6 and Actor.get_talk_flag(actor, 1) then
+      idx = 0x16
+   elseif actor.obj_flag_0 then
+      if player_get_gender() == 1 then
+         idx = 0x73
+      else
+         idx = 0x72
+      end
+   elseif idx == 0x21 and not Actor.get_talk_flag(actor, 2) then
+      idx = 0x61
+   elseif idx == 0x15 or (idx >= 0x47 and idx <= 0x4a) or idx == 0x4e then
+      idx = 0x14
+   elseif idx >= 0x4b and idx <= 0x4d then
+      idx = 0x16
+   elseif idx == 0x1e then
+      idx = 0x18
+   elseif idx == 0x46 then
+      idx = 0x40
+   elseif idx >= 0x50 and idx <= 0x57 then
+      idx = idx - 0x26
+   elseif idx == 0x5e then
+      idx = 0x6
+   elseif idx == 0x68 or idx == 0x77 or idx == 0x78 then
+      idx = 0x67
+   elseif idx == 0x69 then
+      idx = 0x19
+   elseif idx == 0x6d then
+      idx = 0x2
+   end
+
+   return idx
+end
+
+function find_rockworm_actor(obj)
+   if obj ~= nil then
+      if obj.obj_n == 371 or obj.obj_n == 370 then --OBJ_ROCKWORM1, OBJ_ROCKWORM_BASE
+         local actor = Actor.get(obj.quality)
+         if actor.alive then
+            return actor
          end
       end
-   else
-      --FIXME do map damage here.
-      play_md_sfx(0)
    end
-   
-end
 
-function actor_hit(actor, damage)
-   local hp = actor.hp
-   if damage >= hp and actor.actor_num == 1 then
-      hit_anim(actor.x, actor.y)
-      actor.hp = 0
-   else
-      Actor.hit(actor, damage)
-   end
+   return obj
 end

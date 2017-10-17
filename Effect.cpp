@@ -1027,6 +1027,7 @@ void FadeEffect::init(FadeType fade, FadeDirection dir, uint32 color, SDL_Surfac
     evtime = prev_evtime = 0;
     fade_x = x; fade_y = y;
     fade_from = NULL;
+    fade_iterations = 0;
     if(capture)
     {
         fade_from = SDL_CreateRGBSurface(SDL_SWSURFACE, capture->w, capture->h,
@@ -1082,7 +1083,7 @@ void FadeEffect::init_pixelated_fade()
             {
                 // put surface on transparent background (not checked)
                 fillret = SDL_FillRect(overlay, NULL, uint32(TRANSPARENT_COLOR));
-                SDL_Rect overlay_rect = { fade_x, fade_y, 0, 0 };
+                SDL_Rect overlay_rect = { (Sint16)fade_x, (Sint16)fade_y, 0, 0 };
                 fillret = SDL_BlitSurface(fade_from, NULL,
                                           overlay, &overlay_rect);
             }
@@ -1233,14 +1234,14 @@ bool FadeEffect::pixelated_fade_core(uint32 pixels_to_check, sint16 fade_to)
         ++p;
     }
     // all but two lines colored
-    if(colored_total >= (pixel_count - fade_width*2)) // fill the rest
+    if(colored_total >= (pixel_count - fade_width*2) || fade_iterations > FADE_EFFECT_MAX_ITERATIONS) // fill the rest
     {
         if(fade_to >= 0)
             SDL_FillRect(overlay, NULL, (uint32)fade_to);
         else // Note: assert(fade_from) if(fade_to < 0)
         {
-            SDL_Rect fade_from_rect = { 0, 0, fade_from->w, fade_from->h };
-            SDL_Rect overlay_rect = { fade_x, fade_y, fade_from->w, fade_from->h };
+            SDL_Rect fade_from_rect = { 0, 0, (Uint16)fade_from->w, (Uint16)fade_from->h };
+            SDL_Rect overlay_rect = { (Sint16)fade_x, (Sint16)fade_y, (Uint16)fade_from->w, (Uint16)fade_from->h };
             SDL_BlitSurface(fade_from, &fade_from_rect, overlay, &overlay_rect);
         }
         return(true);
@@ -1281,6 +1282,7 @@ uint32 FadeEffect::pixels_to_check()
     uint32 fraction = 1000 / (time_passed > 0 ? time_passed : 1); // % of second passed, in milliseconds
     uint32 pixels_per_fraction = fade_speed / (fraction > 0 ? fraction : 1);
     prev_evtime = evtime;
+    fade_iterations++;
     return(pixels_per_fraction);
 }
 

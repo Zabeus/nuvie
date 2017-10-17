@@ -86,6 +86,31 @@ bool PartyView::init(void *vm, uint16 x, uint16 y, Font *f, Party *p, Player *pl
  return true;
 }
 
+GUI_status PartyView::MouseWheel(sint32 x, sint32 y)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	int xpos, ypos;
+    screen->get_mouse_location(&xpos, &ypos);
+
+    xpos -= area.x;
+    ypos -= area.y;
+	if(xpos < 0 || ypos > area.y + area.h - 6)
+		return GUI_PASS; // goes to MsgScrollw
+#endif
+ if(y > 0)
+   {
+    if(up_arrow())
+      Redraw();
+   }
+  if(y < 0)
+   {
+    if(down_arrow())
+      Redraw();
+   }
+
+ return GUI_YUM;
+}
+
 GUI_status PartyView::MouseUp(int x,int y,int button)
 {
  x -= area.x;
@@ -111,13 +136,13 @@ GUI_status PartyView::MouseUp(int x,int y,int button)
  SDL_Rect arrow_rects[2] = {{0,6,7,8},{0,102,7,8}};
  SDL_Rect arrow_up_rect_MD[1] = {{0,15,7,8}};
 
- if(button == SDL_BUTTON_WHEELUP || HitRect(x,y,U6? arrow_rects_U6[0]: (MD ? arrow_up_rect_MD[0] : arrow_rects[0]))) //up arrow hit rect
+ if(HitRect(x,y,U6? arrow_rects_U6[0]: (MD ? arrow_up_rect_MD[0] : arrow_rects[0]))) //up arrow hit rect
    {
     if(up_arrow())
       Redraw();
     return GUI_YUM;
    }
-  if(button == SDL_BUTTON_WHEELDOWN || HitRect(x,y,U6? arrow_rects_U6[1]: arrow_rects[1])) //down arrow hit rect
+  if(HitRect(x,y,U6? arrow_rects_U6[1]: arrow_rects[1])) //down arrow hit rect
    {
     if(down_arrow())
       Redraw();
@@ -290,7 +315,7 @@ void PartyView::Display(bool full_redraw)
    update_display = false;
    uint8 end_offset = row_offset + 5;
    if(MD)
-      fill_md_background(area);
+      fill_md_background(bg_color, area);
    else
       screen->fill(bg_color, area.x, area.y, area.w, area.h);
    //if(U6)

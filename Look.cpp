@@ -21,7 +21,8 @@
  *
  */
 #include <ctype.h>
-
+#include <stdlib.h>
+#include <string.h>
 #include "nuvieDefs.h"
 #include "Configuration.h"
 #include "NuvieIOFile.h"
@@ -37,7 +38,7 @@ Look::Look(Configuration *cfg)
 {
  config = cfg;
 
- look_tbl[2047] = '\0';
+ look_tbl[2047] = NULL;
  max_len = 0;
 }
 

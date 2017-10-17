@@ -55,6 +55,7 @@ InventoryView::InventoryView(Configuration *cfg) : View(cfg),
  is_party_member = false;
  picking_pocket = false;
  outside_actor = NULL;
+ lock_actor = false;
 }
 
 InventoryView::~InventoryView()
@@ -63,7 +64,7 @@ InventoryView::~InventoryView()
 
 bool InventoryView::set_party_member(uint8 party_member)
 {
- if(party_member >= party->get_party_size())
+ if(lock_actor || party_member >= party->get_party_size())
  {
    return false;
  }
@@ -101,6 +102,9 @@ bool InventoryView::set_party_member(uint8 party_member)
 
 bool InventoryView::set_actor(Actor *actor, bool pickpocket)
 {
+  if(lock_actor)
+    return false;
+
    if(party->contains_actor(actor))
    {
      set_party_member(party->get_member_num(actor));
@@ -162,7 +166,7 @@ void InventoryView::Display(bool full_redraw)
  if(full_redraw || update_display)
    {
     if(MD)
-        fill_md_background(area);
+        fill_md_background(lock_actor ? 7 : bg_color, area);
     else
         screen->fill(bg_color, area.x, area.y, area.w, area.h);
 
@@ -334,7 +338,7 @@ void InventoryView::display_combat_mode()
 /* Move the cursor around, ready or unready objects, select objects, switch
  * to container view, use command icons.
  */
-GUI_status InventoryView::KeyDown(SDL_keysym key)
+GUI_status InventoryView::KeyDown(SDL_Keysym key)
 {
     if(!show_cursor) // FIXME: don't rely on show_cursor to get/pass focus
         return(GUI_PASS);
@@ -698,21 +702,33 @@ bool InventoryView::select_obj(Obj *obj)
     return false;
 }
 
-GUI_status InventoryView::MouseDown(int x, int y, int button)
-{
-	if(!is_party_member)
-		return GUI_PASS;
-	x -= area.x;
-	y -= area.y;
-	bool wheel_range = (x < 64 || y > 78);
-	if(button == SDL_BUTTON_WHEELUP && wheel_range) {
-		View::callback(BUTTON_CB, left_button, Game::get_game()->get_view_manager());
-		return GUI_YUM;
-	} else if(button == SDL_BUTTON_WHEELDOWN && wheel_range) {
-		View::callback(BUTTON_CB, right_button, Game::get_game()->get_view_manager());
-		return GUI_YUM;
-	}
-	return GUI_PASS;
+GUI_status InventoryView::MouseDown(int x, int y, int button) {
+    return GUI_PASS;
+}
+
+GUI_status InventoryView::MouseWheel(sint32 x, sint32 y) {
+
+    if (!is_party_member)
+        return GUI_PASS;
+
+    int xpos, ypos;
+    screen->get_mouse_location(&xpos, &ypos);
+
+    xpos -= area.x;
+    ypos -= area.y;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	bool wheel_range = (xpos >= 0 && ypos < area.y + area.h - 6);
+#else
+    bool wheel_range = (xpos < 64 || ypos > 78);
+#endif
+    if (y > 0 && wheel_range) {
+        View::callback(BUTTON_CB, left_button, Game::get_game()->get_view_manager());
+        return GUI_YUM;
+    } else if (y < 0 && wheel_range) {
+        View::callback(BUTTON_CB, right_button, Game::get_game()->get_view_manager());
+        return GUI_YUM;
+    }
+    return GUI_PASS; // goes to MsgScroll
 }
 
 /* Messages from child widgets, Inventory & Doll.

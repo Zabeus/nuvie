@@ -1,3 +1,260 @@
+2017-09-26  Eric Fry <efry at users.sourceforge.net>
+	* Fixed wall reshaping bugs. issue #68
+ 
+2017-08-02  Michael Fink <vividos at users.sourceforge.net>
+	* Updated the Visual Studio project and source files to compile under
+	  Visual Studio 2017.
+
+2017-06-12  Eric Fry <efry at users.sourceforge.net>
+	* Attempt to load custom tiles from a data directory in the savegame directory.
+	  If that doesn't exist then load them from the App data dir.
+
+2017-06-09  Eric Fry <efry at users.sourceforge.net>
+	* Moved tileset export file to data/images/tiles/nn/custom_tiles.bmp
+	  in the current savegame directory.
+	* Don't automatically overwrite custom_tiles.bmp if it already exists
+
+2017-06-07  Eric Fry <efry at users.sourceforge.net>
+	* Added Blonde hair avatar sprites created by Kenneth Kully.
+
+2017-05-31  Eric Fry <efry at users.sourceforge.net>
+	* Added new altcode alt-914 This dumps out the current tileset
+	  to a file called 'custom_tiles.bmp' in the savegame directory.
+
+2017-05-30  Eric Fry <efry at users.sourceforge.net>
+	* moved custom actor tiles from data/images/actors/U6 to
+	  data/images/tiles/U6
+	* Added support for replacing all tiles. Just put a bmp file called
+	  custom_tiles.bmp into data/images/tiles/U6/
+	* More work on MD dreamworld. Use dreamstuff. use spray gun.
+	* Allow MD usecode to target actors.
+
+2017-05-07  Eric Fry <efry at users.sourceforge.net>
+	* Moved technical docs from subversion into the main Nuvie git repo.
+
+2017-05-07  Eric Fry <efry at users.sourceforge.net>
+	* Changed map_get_tile_num() to optionally return the original tile_num.
+	  This is useful when dealing with animating tiles
+	* Print "...faster!" when falling in the MD dreamworld
+
+2017-05-06  Eric Fry <efry at users.sourceforge.net>
+	* Fixed MD minotaur attack logic
+	* Don't draw MD debug tiles on map when show eggs is disabled
+	* Fixed some issues when avatar returns from dreamworld.
+
+2017-05-01  Eric Fry <efry at users.sourceforge.net>
+	* Added more MD spread weapon logic
+	* Fixed use radium on ray gun usecode
+
+2017-04-27  Eric Fry <efry at users.sourceforge.net>
+	* Use chips of Radium on ray guns
+	* Fixed freeze ray gun projectile anim tile
+
+2017-04-24  Eric Fry <efry at users.sourceforge.net>
+	* More work on MD attack logic.
+	* Added the ability to read Obj invisible status from lua scripts.
+	* Fixed MD objlist movement flags location.
+
+2017-04-20  Eric Fry <efry at users.sourceforge.net>
+	* Added MD combat projectile animations
+
+2017-04-07  Eric Fry <efry at users.sourceforge.net>
+	* Work on MD combat logic
+	* More work on MD dreamworld logic
+	* Added new combat.lua file for MD combat logic
+	* Added new lua script functions to lock/unlock the InventoryView
+	  This is used to lock the view in dream mode.
+	* Added new SCRIPT_MODE to Event. This will be used
+	  to offload event logic into lua script.
+	* Started to implement the player attack event in lua script
+
+2017-03-18  Eric Fry <efry at users.sourceforge.net>
+	* Work on MD attack object logic.
+
+2017-03-14  Eric Fry <efry at users.sourceforge.net>
+	* Added lua actor.xyz field
+	* Moved some u6 actor functions into common lua
+	* Work on Minotaur worktype
+
+2017-03-08  Eric Fry <efry at users.sourceforge.net>
+	* Fixed end of buffer bug with NuvieIO class
+	* Added lua functions for querying an Actor's Schedule
+	  Actor.get_number_of_schedules() and Actor.get_schedule()
+	* Added dream quest finish logic
+	* Finished MD switch usecode logic
+
+2017-03-07  Eric Fry <efry at users.sourceforge.net>
+	* Added map_enable_temp_actor_cleaning() script function to
+	  disable temp actor cleaning. Needed for some MD dream sequences
+	  which spawn temp actors more than 19 tiles away from the player.
+	* Started on MD use switch logic
+
+2017-03-03  Eric Fry <efry at users.sourceforge.net>
+	* Changed player_before_move_action() to return movement status.
+	  CAN_MOVE, BLOCKED or FORCE_MOVE
+	* More work on MD cliff fall logic.
+
+2017-03-01  Eric Fry <efry at users.sourceforge.net>
+	* Work player death in dreamworld
+	* Refactored temp object cleanup logic
+
+2017-02-28  Eric Fry <efry at users.sourceforge.net>
+	* More work on MD mother dream logic.
+	* Added select_target_actor() script logic
+
+2017-02-21  Eric Fry <efry at users.sourceforge.net>
+	* Fixed bug when running tools in windows. Write files in binary mode.
+	* Work on MD mother actor logic
+
+2017-02-19  Eric Fry <efry at users.sourceforge.net>
+	* Added new pack_lzc tool.
+	* Removed the SDL requirement from some tools
+	* More work on MD dreamworld logic
+	* Don't drag actors around with vehicle in MD
+
+2017-02-09  Eric Fry <efry at users.sourceforge.net>
+	* Added MD walk on walls logic.
+	* Removed darkness from MD dream levels.
+
+2017-02-09  Eric Fry <efry at users.sourceforge.net>
+	* Don't delete MD dream teleporter objects even though
+	  they are marked as temporary.
+	* Added party_set_in_vehicle() script function
+	* Fixed bug with location table argument handling in lua C logic
+	* Fixed bug with Weather class in MD mode.
+	* More work on MD dream logic
+
+2017-02-02  Eric Fry <efry at users.sourceforge.net>
+	* Started work on using dream machine
+
+2017-02-01  Eric Fry <efry at users.sourceforge.net>
+	* Added MD use headgear
+	* Work on MD use panel
+
+2017-02-01  Eric Fry <efry at users.sourceforge.net>
+	* Added MD talk scripts 1 and 7
+	* Added MD use radium block
+
+2017-01-29  Eric Fry <efry at users.sourceforge.net>
+	* Added MD talk to object logic
+	* Made lua obj.status a read/write field
+	* Fixed null pointer when attempting to load portrait on startup
+	  in original mode
+
+2017-01-29  Eric Fry <efry at users.sourceforge.net>
+	* Added MD oil usecode
+	* Added MD hand mirror usecode
+	* Fixed MD power line reconnection logic
+
+2017-01-23  Eric Fry <efry at users.sourceforge.net>
+	* Added support for MD auto doors, teleport pods and
+	  refective surfaces.
+	* Added obj.xyz script field. This returns a MapCoord table
+	  object.
+
+2017-01-21  Eric Fry <efry at users.sourceforge.net>
+	* Added new script function find_obj_from_area. This allows you
+	  to iterate over all objects within a given area.
+	* Added more MD use entrance logic.
+
+2017-01-18  Eric Fry <efry at users.sourceforge.net>
+	* Fixed MD portrait number logic
+	* Added actor.obj_flag_0 var to script
+
+2017-01-17  Eric Fry <efry at users.sourceforge.net>
+	* Added MD use heartstone logic
+	* Started MD use manuscript logic
+
+2017-01-16  Eric Fry <efry at users.sourceforge.net>
+	* Added script function player_get_name()
+	* Added script function display_text_in_scroll_gump()
+	* Added MD usecode use_pool_table and use_ready_obj
+ 
+2017-01-11  Eric Fry <efry at users.sourceforge.net>
+	* Added reading material usecode logic.
+	* Added new script function load_text_from_lzc()
+
+2017-01-10  Eric Fry <efry at users.sourceforge.net>
+	* Work on MD telekinesis
+	* Work on MD get logic
+
+2017-01-09  Eric Fry <efry at users.sourceforge.net>
+	* Fixed barrel movement bug in Blue Bottle Tavern.
+
+2016-12-31  Eric Fry <efry at users.sourceforge.net>
+	* Lighting fixes for issue #55.
+	* Increased border from 2 to 3 to give a smoother
+	  light experience for light globes with a radius of
+	  3 tiles.
+ 
+2016-12-18  Eric Fry <efry at users.sourceforge.net>
+	* Fixed bug when searching harpsichords and beds.
+
+2016-08-30  Eric Fry <efry at users.sourceforge.net>
+	* Added WOU support for writing LIB files.
+	* Changed the unpack_font tool to export the font as a bmp file.
+	* Created new pack_font tool to import a font bmp back into the
+	  in-game system font format. WOU only at this stage.
+	* Started to add CMake support for building the tools.
+
+2016-08-27  Mikey Alexander <firesword at yahoo.com>
+	* Enable Containers in SE (MD too?) and Look Code for SE
+
+2016-08-26  Eric Fry <efry at users.sourceforge.net>
+	* Fixed Issue #47 OS X: original+ is not getting any input
+
+2016-08-26  Mikey Alexander <firesword at yahoo.com>
+	* SE Lazy Teleport Locations
+
+2015-12-18  Eric Fry <efry at users.sourceforge.net>
+	* Added support for SDL2
+	* Added support for VGA 4:3 aspect ratio pixels.
+
+2015-11-30  anylonen
+	* Added support for linux in CMake build script.
+ 
+2015-10-23  Eric Fry <efry at users.sourceforge.net>
+	* Fixed bug with incorrect inventory items for U6 guards.
+	  Thanks to Quentinak for pointing it out. I think I may have
+	  been experimenting with the original exe and changed them then
+	  forgot about it and copied the new values into Nuvie.
+	  Guards now have crossbows, halberds and gold coins instead of
+	  torches, firewands and chests.
+
+2015-09-21  Eric Fry <efry at users.sourceforge.net>
+	* More work on MD map damage logic
+	* changed tile_get_flag() script func to use the original tile
+	* Added tile_num_original object getter method to return original
+	  tile number.
+
+2015-09-18  Eric Fry <efry at users.sourceforge.net>
+	* MD more work on attack/defence script logic
+
+2015-09-17  Eric Fry <efry at users.sourceforge.net>
+	* MD work on attack/defence script logic
+
+2015-09-10  Eric Fry <efry at users.sourceforge.net>
+	* MD turn off power when conveyor belt stops.
+
+2015-09-08  Eric Fry <efry at users.sourceforge.net>
+	* Added anim_play() and anim_stop() script functions.
+	* MD work on power activation logic
+
+2015-08-30  Eric Fry <efry at users.sourceforge.net>
+	* Started on MD sit logic
+	* Starting moving player "Pass!" logic into lua script.
+	* Added internationalisation files for U6 and SE
+	* Added new player.lua script file.
+	* Fixed crash when trying to use garg font in WOU games.
+	* Fixed crash when invalid coordinates are passed to objs_at_loc()
+	  script function.
+	* Move actors along the conveyor belt in MD
+
+2015-08-24  Eric Fry <efry at users.sourceforge.net>
+	* Added CMake build file. (OS X specific at the moment)
+	* MD Fixed Coker walk frames.
+	* Fixed some C++11 compile errors.
+
 2015-01-01  Eric Fry <efry at users.sourceforge.net> r2008
 	* Work on MD conveyor belt logic
 	* Work on Coker worktypes.
@@ -3289,7 +3546,7 @@
 	* Added new ConverseGump class.
 
 2012-05-01  Eric Fry <efry at users.sourceforge.net> r1320
-	* Added Daniel c. Würl to the AUTHORS file.
+	* Added Daniel c. Wï¿½rl to the AUTHORS file.
 	* Reorganised the AUTHORS file to list active and inactive team members.
 	* Added new grey roof tiles.
 
@@ -3385,7 +3642,7 @@
 
 2012-03-10  Eric Fry <efry at users.sourceforge.net> r1299
 	* Started work on newlook spellbook gump for fullscreen mode.
-	  Thanks to Daniel c. Würl for his awesome artwork.
+	  Thanks to Daniel c. Wï¿½rl for his awesome artwork.
 
 2012-03-06  Eric Fry <efry at users.sourceforge.net> r1298
 	* Started work fullscreen map mode.
@@ -7569,7 +7826,7 @@ not-sure-when  Eric Fry <efry at users.sourceforge.net>
 	* Fixed look display for animated objects.
 	* Added GameSelect class which will contain game selection menu etc.
 
-2003-05-28  Markus Niemistö <niemisto at users.sourceforge.net>
+2003-05-28  Markus Niemistï¿½ <niemisto at users.sourceforge.net>
         * ObjManager: Many containers can now be used and items got out of
         them.
         * U6Shape: Added support for loading U6 shapes
@@ -7588,7 +7845,7 @@ not-sure-when  Eric Fry <efry at users.sourceforge.net>
 	* U6Lib_n: now handling (read or skip) 4byte filesize at start of files
 
 2003-05-24  Eric Fry <efry at users.sourceforge.net>
-	* Get support thanks to a patch by Markus Niemistö.
+	* Get support thanks to a patch by Markus Niemistï¿½.
 
 2003-05-23  Eric Fry <efry at users.sourceforge.net>
 	* Work done on object weight. "you see blah. I weighs x.x stones."

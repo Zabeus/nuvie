@@ -7,6 +7,15 @@
 #include "../files/U6Lib_n.h"
 #include "../files/NuvieIOFile.h"
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+int __stdcall WinMain(HINSTANCE hInst, HINSTANCE hPrevInst,  LPSTR lpCmdLine, int iShowCmd) {
+	//SDL_SetModuleHandle(GetModuleHandle(NULL));
+	return main(__argc, __argv);
+}
+#endif
+
 int main(int argc, char **argv)
 {
  U6Lib_n library;
@@ -24,12 +33,12 @@ int main(int argc, char **argv)
 
  name="masktype.vga";
 
- if(library.open(name, 4, NUVIE_GAME_SE) == false)
+ if(!library.open(name, 4, NUVIE_GAME_SE))
   exit(1);
 
   data = library.get_item(0, NULL);
-  FILE * filed = fopen("item_masktype.vga","w");
-  fprintf(stderr,"size: %ld\n",library.get_item_size(0));
+  FILE * filed = fopen("item_masktype.vga","wb");
+  fprintf(stderr,"size: %d\n",library.get_item_size(0));
   fwrite(data,1,library.get_item_size(0), filed);
   fclose(filed);
   free(data);
@@ -37,12 +46,12 @@ int main(int argc, char **argv)
  library.close();
  
  name="maptiles.vga";
- if(library.open(name, 4, NUVIE_GAME_SE) == false)
+ if(!library.open(name, 4, NUVIE_GAME_SE))
   exit(1);
 
   data = library.get_item(0, NULL);
-  filed = fopen("item_maptiles.vga","w");
-  fprintf(stderr,"size: %ld\n",library.get_item_size(0));
+  filed = fopen("item_maptiles.vga","wb");
+  fprintf(stderr,"size: %d\n",library.get_item_size(0));
   fwrite(data,1,library.get_item_size(0), filed);
   fclose(filed);
   free(data);

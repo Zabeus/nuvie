@@ -106,6 +106,11 @@ bool UseCode::is_script_running()
   return false;
 }
 
+bool UseCode::is_container(Obj *obj)
+{
+    return script->call_is_container_obj(obj->obj_n);
+}
+
 bool UseCode::has_usecode(Obj *obj, UseCodeEvent ev)
 {
   return script->call_has_usecode(obj, ev);
@@ -337,4 +342,14 @@ bool UseCode::out_of_use_range(Obj *obj, bool check_enemies)
         delete enemies;
     }
     return false;
+}
+
+const char *useCodeTypeToString(UseCodeType type)
+{
+  switch(type) {
+    case USE : return "use";
+    case MOVE : return "move";
+    case GET : return "get";
+    default : return "other";
+  }
 }

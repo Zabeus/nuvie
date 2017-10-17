@@ -23,7 +23,7 @@ case "$host_os" in
 		CPPFLAGS="$CPPFLAGS -DLUA_USE_LINUX"
 		;;
 	darwin*)
-		dnl We have a problem here: both MacOS X and Darwin report 
+		dnl We have a problem here: both MacOS X and Darwin report
 		dnl the same signature "powerpc-apple-darwin*" - so we have
 		dnl to do more to distinguish them. Plain Darwin will propably
 		dnl use X-Windows; and it is of course lacking Cocoa.
@@ -39,14 +39,20 @@ esac
 AM_CONDITIONAL(MACOSX, test x$HOST_SYSTEM = xMACOSX)
 
 # SDL
-AC_LANG_C
-SDL_VERSION=1.2.0
-AM_PATH_SDL($SDL_VERSION,
-	:,
-	AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
-)
+AC_LANG_CPLUSPLUS
+#SDL_VERSION=1.2.0
+#AM_PATH_SDL($SDL_VERSION,
+#	:,
+#	AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
+#)
+
+EXULT_CHECK_SDL(:,AC_MSG_ERROR([[*** SDL not found!]]))
+
 AC_LANG_CPLUSPLUS
 
+AC_SEARCH_LIBS([dlopen], [dl dld], [], [
+  AC_MSG_ERROR([unable to find the dlopen() function])
+])
 
 # debugging
 DEBUG_FLAGS="-O2"
@@ -113,6 +119,13 @@ if test x$HOST_SYSTEM == xMACOSX; then
 		# We should have sdl-config by this point, or we would have
 		# died in AM_PATH_SDL.
 		SDL_LIBS=`$SDL_CONFIG $sdl_config_args --static-libs`
+	fi
+fi
+
+# the bundle version of nuvie requires the cocoa framework. It isn't a requirement of SDL2 anymore.
+if test x$HOST_SYSTEM == xMACOSX; then
+	if test $SDL_MAJOR_VERSION -eq 2; then
+		SDL_LIBS="$SDL_LIBS -Wl,-framework,Cocoa"
 	fi
 fi
 

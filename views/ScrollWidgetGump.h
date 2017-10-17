@@ -72,6 +72,8 @@ class ScrollWidgetGump: public MsgScroll
  ScrollWidgetGump(Configuration *cfg, Screen *s);
  ~ScrollWidgetGump();
 
+ bool parse_token(MsgText *token);
+
  bool can_display_prompt() { return false; }
 
  void Display(bool full_redraw);
@@ -84,9 +86,10 @@ class ScrollWidgetGump: public MsgScroll
 
  bool can_fit_token_on_msgline(MsgLine *msg_line, MsgText *token);
 
- GUI_status KeyDown(SDL_keysym key);
+ GUI_status KeyDown(SDL_Keysym key);
  GUI_status MouseDown(int x, int y, int button);
  GUI_status MouseUp(int x, int y, int button) { return GUI_YUM; } // otherwise we do Msgscroll::MouseUp
+ GUI_status MouseWheel(sint32 x, sint32 y);
 
  void move_scroll_down() { scroll_movement_event(SCROLL_DOWN); }
  void move_scroll_up() { scroll_movement_event(SCROLL_UP); }
@@ -99,6 +102,7 @@ class ScrollWidgetGump: public MsgScroll
  private:
  GUI_status scroll_movement_event(ScrollEventType event);
  void update_arrows();
+
 
 };
 

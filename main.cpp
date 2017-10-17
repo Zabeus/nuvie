@@ -38,7 +38,7 @@
 
 #ifdef MACOSX
 #include <CoreFoundation/CoreFoundation.h>
-#include <xcodebuild/main.cpp>
+#include <XCodeBuild/main.cpp>
 int nuvieMain(int argc, char **argv)
 #else
 int main(int argc, char **argv)
@@ -50,6 +50,8 @@ int main(int argc, char **argv)
  DEBUG(1,LEVEL_DEBUGGING,"To just get less spam, set the default for CurrentDebugLevel in Debug.cpp lower.\n");
  #ifdef MACOSX
  srandom(time(NULL));
+
+
  CFBundleRef bundle = CFBundleGetMainBundle();
  if(bundle != NULL)
  {
@@ -65,6 +67,7 @@ int main(int argc, char **argv)
 		CFRelease(fileUrl);
 	}
  }
+
  #else
  srand(time(NULL));
  #endif
@@ -74,6 +77,7 @@ int main(int argc, char **argv)
  if(nuvie->init(argc, argv) == false)
  {
    ConsolePause();
+   delete nuvie;
    return 1;
  }
 

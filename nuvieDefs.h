@@ -10,7 +10,7 @@
 #if _MSC_VER < 1300
 #include "msvc/msvc_kludges.h"
 #elif _MSC_VER >= 1300
-#include "visualc7/vc7inc.h"
+#include "msvc/msvc_inc.h"
 #endif
 
 #endif
@@ -126,5 +126,7 @@ typedef unsigned char BOOL;
 /*#define nuprint(T) Game::get_game()->get_scroll()->display_string(T)*/
 /*#define nuprint(T) Game::get_game()->get_scroll()->display_string(T); \
                      Game::get_game()->get_scroll()->display_string("\n");*/
+
+#include "SDL_compat.h"
 
 #endif /* __nuvieDefs_h__ */

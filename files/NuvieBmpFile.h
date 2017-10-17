@@ -29,8 +29,6 @@
 #include "NuvieIOFile.h"
 #include "TileManager.h"
 
-class Screen;
-
 class NuvieBmpFile
 {
  private:
@@ -81,7 +79,6 @@ class NuvieBmpFile
    Tile *getTile();
    unsigned char *getRawIndexedData();
    unsigned char *getRawIndexedDataCopy();
-   SDL_Surface *getSdlSurface8(Screen *screen);
    SDL_Surface *getSdlSurface32();
    SDL_Surface *getSdlSurface32(std::string filename);
 

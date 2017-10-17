@@ -27,6 +27,7 @@
 #include <vector>
 #include "SDL.h"
 
+#include "nuvieDefs.h"
 #include "ObjManager.h"
 #include "GUI_widget.h"
 #include "Map.h"
@@ -220,7 +221,7 @@ class MapWindow: public GUI_Widget
  void get_windowSize(uint16 *width, uint16 *height);
 
  bool in_window(uint16 x, uint16 y, uint8 z);
- bool in_dungeon_level() { return(cur_level != 0 && cur_level != 5); }
+ bool in_dungeon_level();
  bool in_town();
  // can put object at world location x,y?
  CanDropOrMoveMsg can_drop_or_move_obj(uint16 x, uint16 y, Actor *actor, Obj *obj);
@@ -244,7 +245,8 @@ class MapWindow: public GUI_Widget
  GUI_status MouseLeave(Uint8 state);
  GUI_status MouseDelayed(int x, int y, int button);
  GUI_status MouseHeld(int x, int y, int button);
- GUI_status KeyDown(SDL_keysym key);
+ GUI_status KeyDown(SDL_Keysym key);
+ GUI_status MouseWheel(sint32 x, sint32 y);
 
  void drag_drop_success (int x, int y, int message, void *data);
  void drag_drop_failed (int x, int y, int message, void *data);
@@ -309,6 +311,9 @@ protected:
 
 private:
  void createLightOverlay();
+
+  void AddMapTileToVisibleList(uint16 tile_num, uint16 x, uint16 y);
+  bool can_display_obj(uint16 x, uint16 y, Obj *obj);
 };
 
 #endif /* __MapWindow_h__ */

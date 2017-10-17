@@ -359,7 +359,8 @@ const char *TileManager::lookAtTile(uint16 tile_num, uint16 qty, bool show_prefi
  if(show_prefix == false)
    return desc;
 
- if(qty > 0 && plural)
+ if(qty > 0 &&
+	(plural || Game::get_game()->get_game_type() == NUVIE_GAME_SE))
    sprintf(desc_buf,"%u %s",qty, desc);
  else
    sprintf(desc_buf,"%s%s",article_tbl[tile->article_n], desc);
@@ -541,7 +542,11 @@ bool TileManager::loadAnimData()
       || (game_type == NUVIE_GAME_MD
       && ((animdata.tile_to_animate[i] >= 1 && animdata.tile_to_animate[i] <= 4) // cistern
       || (animdata.tile_to_animate[i] >= 16 && animdata.tile_to_animate[i] <= 23) // canal
-      || (animdata.tile_to_animate[i] >= 616 && animdata.tile_to_animate[i] <= 627)))) // watch --pu62 lists as 416-427
+      || (animdata.tile_to_animate[i] >= 616 && animdata.tile_to_animate[i] <= 627) // watch --pu62 lists as 416-427
+      || animdata.tile_to_animate[i] == 1992
+      || animdata.tile_to_animate[i] == 1993
+      || animdata.tile_to_animate[i] == 1980
+      || animdata.tile_to_animate[i] == 1981 )))
  
     animdata.loop_count[i] = 0; // don't start animated
    else
@@ -696,7 +701,7 @@ void TileManager::set_anim_first_frame(uint16 anim_number, uint16 new_start_tile
 /* Returns tile rotated about the center by `rotate' degrees. (8-bit; clipped to
  * standard 16x16 size) It must be deleted after use.
  * **Fixed-point rotate function taken from the SDL Graphics Extension library
- * (SGE) (c)1999-2003 Anders Lindström, licensed under LGPL v2+.**
+ * (SGE) (c)1999-2003 Anders Lindstrï¿½m, licensed under LGPL v2+.**
  */
 Tile *TileManager::get_rotated_tile(Tile *tile, float rotate, uint8 src_y_offset)
 {
@@ -970,7 +975,7 @@ void TileManager::freeCustomTiles()
   }
 }
 
-void TileManager::exportTilesetToBmpFile(std::string filename)
+void TileManager::exportTilesetToBmpFile(std::string filename, bool fixupU6Shoreline)
 {
   NuvieBmpFile bmp;
 
@@ -991,7 +996,7 @@ void TileManager::exportTilesetToBmpFile(std::string filename)
   {
     for(uint8 j=0;j<32;j++)
     {
-      if(game_type == NUVIE_GAME_U6 && (i*32+j) >= 16 && (i*32+j) < 48) //lay down the base tile for shoreline tiles
+      if(fixupU6Shoreline && game_type == NUVIE_GAME_U6 && (i*32+j) >= 16 && (i*32+j) < 48) //lay down the base tile for shoreline tiles
         {
           writeBmpTileData(&data[i*16*512 + j*16], get_anim_base_tile(i*32+j), false);
           writeBmpTileData(&data[i*16*512 + j*16], &tile[tileindex[i*32+j]], true);
@@ -1018,4 +1023,19 @@ void TileManager::writeBmpTileData(unsigned char *data, Tile *t, bool transparen
     }
     data += 512;
   }
+}
+
+void TileManager::anim_play_repeated(uint8 anim_index)
+{
+    if(anim_index < get_number_of_animations())
+    {
+        animdata.loop_count[anim_index] = -1; // infinite animation
+    }
+}
+
+void TileManager::anim_stop_playing(uint8 anim_index) {
+    if(anim_index < get_number_of_animations())
+    {
+        animdata.loop_count[anim_index] = 0; // stop animation
+    }
 }
